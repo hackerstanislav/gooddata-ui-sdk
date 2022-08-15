@@ -576,6 +576,13 @@
             "reviewCategory": "tools",
             "versionPolicyName": "sdk",
             "shouldPublish": true
+        },
+        {
+            "packageName": "@gooddata/dependency-analyzer",
+            "projectFolder": "tools/dependency-analyzer",
+            "reviewCategory": "tools",
+            "versionPolicyName": "sdk",
+            "shouldPublish": true
         }
         // {
         //   /**

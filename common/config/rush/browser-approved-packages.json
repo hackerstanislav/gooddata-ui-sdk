@@ -239,6 +239,10 @@
       "allowedCategories": [ "production" ]
     },
     {
+      "name": "@schemastore/package",
+      "allowedCategories": [ "tools" ]
+    },
+    {
       "name": "@storybook/addon-actions",
       "allowedCategories": [ "production" ]
     },
@@ -567,6 +571,10 @@
       "allowedCategories": [ "examples", "production", "tools" ]
     },
     {
+      "name": "comment-json",
+      "allowedCategories": [ "tools" ]
+    },
+    {
       "name": "compression-webpack-plugin",
       "allowedCategories": [ "examples", "production", "tools" ]
     },
@@ -717,6 +725,10 @@
     {
       "name": "formik",
       "allowedCategories": [ "examples" ]
+    },
+    {
+      "name": "fp-ts",
+      "allowedCategories": [ "tools" ]
     },
     {
       "name": "fs-extra",
