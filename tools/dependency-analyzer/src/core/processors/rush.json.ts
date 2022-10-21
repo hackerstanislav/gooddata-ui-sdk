@@ -1,5 +1,6 @@
 // (C) 2021-2022 GoodData Corporation
 import * as TE from "fp-ts/TaskEither";
+import * as E from "fp-ts/Either";
 import * as A from "fp-ts/Array";
 import * as R from "fp-ts/Record";
 import * as EQ from "fp-ts/Eq";
@@ -7,6 +8,7 @@ import * as F from "fp-ts/function";
 import * as path from "path";
 
 import { CoreError } from "../errors";
+import { validateLoop } from "../validation/dependencies";
 import { RushJson, PackageJson, PackageJsonErrors, loadPackageJson } from "../loaders";
 
 export type ProcessRushJsonErrors = PackageJsonErrors;
@@ -17,6 +19,7 @@ export type ProjectsInfo = {
         local: Record<string, string[]>;
         external: Record<string, string[]>;
     };
+    loop?: string[];
 };
 
 export type PackageInfo = {
@@ -31,7 +34,12 @@ export function processRushJson(
 ): TE.TaskEither<CoreError<ProcessRushJsonErrors>, ProjectsInfo> {
     const projectsInfo: Partial<ProjectsInfo> = {};
 
-    return F.pipe(TE.right(projectsInfo), TE.chainW(fillPackages(rushJson)), TE.chainW(fillDependencies()));
+    return F.pipe(
+        TE.right(projectsInfo),
+        TE.chainW(fillPackages(rushJson)),
+        TE.chainW(fillDependencies()),
+        TE.chainW(fillLoop()),
+    );
 }
 
 //package
@@ -131,4 +139,16 @@ function collectDependencies(packageJson: PackageJson) {
         ],
         A.uniq(EQ.fromEquals((a, b) => a === b)),
     );
+}
+
+//loops
+
+function fillLoop() {
+    return (obj: Pick<ProjectsInfo, "dependencies" | "packages">) =>
+        F.pipe(
+            validateLoop(obj.dependencies.local),
+            E.map(() => ({ ...obj })),
+            E.orElse(({ path }) => E.right({ ...obj, loop: path })),
+            TE.fromEither,
+        );
 }
