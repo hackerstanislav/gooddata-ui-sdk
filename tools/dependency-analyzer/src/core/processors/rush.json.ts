@@ -2,6 +2,7 @@
 import * as TE from "fp-ts/TaskEither";
 import * as E from "fp-ts/Either";
 import * as A from "fp-ts/Array";
+import * as AP from "fp-ts/Apply";
 import * as R from "fp-ts/Record";
 import * as EQ from "fp-ts/Eq";
 import * as F from "fp-ts/function";
@@ -9,9 +10,17 @@ import * as path from "path";
 
 import { CoreError } from "../errors";
 import { validateLoop } from "../validation/dependencies";
-import { RushJson, PackageJson, PackageJsonErrors, loadPackageJson } from "../loaders";
+import {
+    RushJson,
+    PackageJson,
+    PackageJsonErrors,
+    loadPackageJson,
+    ApiExtractorJson,
+    ApiExtractorJsonErrors,
+    loadApiExtractorJson,
+} from "../loaders";
 
-export type ProcessRushJsonErrors = PackageJsonErrors;
+export type ProcessRushJsonErrors = PackageJsonErrors | ApiExtractorJsonErrors;
 
 export type ProjectsInfo = {
     packages: Record<string, PackageInfo>;
@@ -27,6 +36,7 @@ export type PackageInfo = {
     version: string;
     public: boolean;
     packageJson: PackageJson;
+    apiExtractorJson: ApiExtractorJson;
 };
 
 export function processRushJson(
@@ -66,19 +76,40 @@ function processProjects(rushJson: RushJson) {
 }
 
 function processProject(directory: string, rushProjectJson: RushJson["projects"][number]) {
-    return F.pipe(
+    const packageJsonFile = F.pipe(
         TE.right(rushProjectJson),
         TE.chainW((a) => F.pipe(path.join(directory, a.projectFolder), loadPackageJson)),
-        TE.map(
-            (a) =>
-                ({
-                    name: rushProjectJson.packageName,
-                    public: rushProjectJson.shouldPublish,
-                    version: a.version,
-                    packageJson: a,
-                } as PackageInfo),
-        ),
     );
+
+    const apiExtractorJsonFile = F.pipe(
+        TE.right(rushProjectJson),
+        TE.chainW((a) => F.pipe(path.join(directory, a.projectFolder), loadApiExtractorJson)),
+    );
+
+    return F.pipe(
+        AP.sequenceS(TE.ApplyPar)({
+            packageJson: packageJsonFile as TE.TaskEither<CoreError<any>, PackageJson>,
+            apiExtractorJson: apiExtractorJsonFile as TE.TaskEither<CoreError<any>, ApiExtractorJson>,
+        }),
+        TE.map(createPackageJson(rushProjectJson)),
+    );
+}
+
+function createPackageJson(rushProjectJson: RushJson["projects"][number]) {
+    return ({
+        packageJson,
+        apiExtractorJson,
+    }: {
+        packageJson: PackageJson;
+        apiExtractorJson: ApiExtractorJson;
+    }) =>
+        ({
+            name: rushProjectJson.packageName,
+            public: rushProjectJson.shouldPublish,
+            version: packageJson.version,
+            packageJson,
+            apiExtractorJson,
+        } as PackageInfo);
 }
 
 function mapPackageInfo(packagesInfo: PackageInfo[]): ProjectsInfo["packages"] {
